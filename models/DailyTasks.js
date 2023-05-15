@@ -1,10 +1,6 @@
 const mongoose = require("mongoose")
 
-const dateTaskSchema = new mongoose.Schema({
-    date:{
-        type:String,
-        required:true
-    },
+const dailyTasksSchema = new mongoose.Schema({
     tasks:[
         {
             id:String,
@@ -15,4 +11,4 @@ const dateTaskSchema = new mongoose.Schema({
     ],
 })
 
-module.exports = mongoose.model("DateTasks",dateTaskSchema)
+module.exports = mongoose.model("DailyTasks",dailyTasksSchema)
