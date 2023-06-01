@@ -166,20 +166,18 @@ app.put("/removeDailyTask",async(req,res)=>{
 
   const dailytasks = await DailyTasks.findOneAndUpdate({})
 
-  // const tasksFromRequest = (req.body.tasks[0]===[])?[]:req.body.tasks[0]
-  console.log("req.body.tasks")
-  console.log(req.body.tasks)
   if(req.body.tasks.length<=0){
     console.log("Came empty")
     dailytasks.tasks=[]
     await dailytasks.save()
+
+
     DateTasks.find({ date: { $gte: currentDate } })
     .then(datetasks => {
       datetasks.forEach(async(datetask)=>{
         var additionalTasks = datetask.tasks.filter((task)=>task.taskType==="additional")
 
         datetask.tasks=[...additionalTasks]
-        console.log(req.body.tasks)
         await datetask.save()
       })
       
@@ -196,16 +194,41 @@ app.put("/removeDailyTask",async(req,res)=>{
   else{
     console.log("Came else")
 
-    dailytasks.tasks = req.body.tasks
+    console.log(req.body.tasks)
+    dailytasks.tasks = req.body.tasks.map((task)=>{
+      task.status="incomplete"
+      return task;
+    })
     await dailytasks.save()
+
+    var originalTasks = req.body.tasks;
+
+
     DateTasks.find({ date: { $gte: currentDate } })
     .then(datetasks => {
       datetasks.forEach(async(datetask)=>{
         var additionalTasks = datetask.tasks.filter((task)=>task.taskType==="additional")
 
-        datetask.tasks=[...additionalTasks,req.body.tasks[0]]
-        console.log(req.body.tasks)
-        await datetask.save()
+        if(datetask.date.toLocaleDateString()===new Date().toLocaleDateString()){
+          console.log("Same date");
+          datetask.tasks=[...additionalTasks,...req.body.tasks.map((task)=>{
+            task.status="complete"
+            return task;
+          })]
+          console.log(datetask)
+          await datetask.save()
+        }
+        else{
+          console.log("NOT Same date");
+          datetask.tasks=[...additionalTasks,...req.body.tasks.map((task)=>{
+            task.status="incomplete"
+            return task;
+          })]
+          console.log(datetask);
+          await datetask.save()
+
+        }
+        // console.log(otherDateTasks)
       })
       
       
@@ -269,7 +292,7 @@ app.post('/getLineChart', async (req, res) => {
       const results = await DateTasks.aggregate([
         {
           $project: {
-            month: { $month: { $dateFromString: { dateString: { $concat: [{ $substr: ['$date', 6, 4] }, '-', { $substr: ['$date', 3, 2] }, '-', { $substr: ['$date', 0, 2] }] } } } },
+            month: { $month: { $dateFromString: { dateString: { $substr: ['$date', 0, 10] } } } },
             tasks: '$tasks.status'
           }
         },
@@ -317,7 +340,7 @@ app.post('/getLineChart', async (req, res) => {
                 data.push({
                     "month":res.month,
                     "complete":res.counts.complete===undefined?0:res.counts.complete,
-                    "incomplete":res.counts.incomplete,
+                    "incomplete":res.counts.incomplete===undefined?0:res.counts.incomplete,
                 })
                 months2.indexOf(months[res.month-1]);
                 if ( months2.indexOf(months[res.month-1]) !== -1) {
@@ -341,11 +364,13 @@ app.post('/getLineChart', async (req, res) => {
                 incompleteTasks.push(val.incomplete)
             })
             // console.log(req.params.date);
+            console.log(req.body.date)
             const sum = dataset.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
             const incompleteTasksSum = incompleteTasks.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
-            const datetask = await DateTasks.findOne({"date":req.body.date})
+            const datetask = await DateTasks.findOne({"date":new Date(req.body.date).setHours(0,0,0,0)})
             var todayComplete = 0
             var todayInComplete = 0
+            console.log(datetask)
             datetask.tasks.map((task)=>{
                 if(task.status==="complete"){
                     todayComplete++
