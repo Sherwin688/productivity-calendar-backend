@@ -4,8 +4,9 @@ const url = "mongodb://127.0.0.1/productivityCalendar"
 const app = express()
 const DateTasks = require("./models/DateTask")
 const cors = require('cors');
-const DateTask = require("./models/DateTask")
+// const DateTask = require("./models/DateTask")
 const DailyTasks = require("./models/DailyTasks")
+const moment = require("moment/moment")
 
 app.use(cors({
     origin: 'http://localhost:3000'
@@ -25,50 +26,58 @@ app.get("/",async(req,res)=>{
         const datetasks = await DateTasks.find()
         res.send(datetasks)
     } catch (error) {
-        console.log(error);
+        // console.log(error);
     }
 })
-app.post("/find",async(req,res)=>{
-    const datetask = await DateTasks.findOne({"date":req.body.date})
+app.post("/find", async (req, res) => {
+  
+ const currentDate = new Date(req.body.date).setHours(0,0,0,0)
+ 
 
-    if(datetask==null){
-        const dailytasks = await DailyTasks.findOne().sort({ field: 'asc', _id: -1 }).limit(1)
-        console.log(dailytasks.tasks)
+  try {
+    // const dailytasks = await DailyTasks.findOne().sort({ field: 'asc', _id: -1 }).limit(1);
+    //   console.log("dailytasks");
+    //   console.log(dailytasks);
+    // Check if a document with the same date already exists
+    const datetask = await DateTasks.findOne({ date: currentDate });
+
+    if (datetask) {
+      // If a document with the same date exists, return the found document
+      res.json({ message: "success", data: datetask });
+    } else 
+    {
+      // If a document with the same date doesn't exist, create a new one
+      const dailytasks = await DailyTasks.findOne().sort({ field: 'asc', _id: -1 }).limit(1);
+      // console.log("dailytasks");
+      // console.log(dailytasks);
+      if (dailytasks) {
         const datetask = new DateTasks({
-            date:req.body.date,
-            tasks:[...dailytasks.tasks]
-        })
-        try {
-            const data = await datetask.save()
-            res.json({message:"success",data:data})
-    } catch (error) {
-        console.log("error");  
-    }
-    }
-    else{
-    try {     
-        console.log(datetask)
-        if(datetask!=null){
+          date: currentDate,
+          tasks: [...dailytasks.tasks]
+        });
+        // console.log(datetask)
+        const savedDateTask = await datetask.save();
+        res.json({ message: "success", data: savedDateTask });
+      } else {
+        const datetask = new DateTasks({
+          date: currentDate,
+          tasks: []
+        });
 
-            res.json({"message":"success","data":datetask})
-        }
-        else{
-            res.json({"message":"fail"})
-        }
-    } catch (error) {
-        console.log(error);
-       
+        const savedDateTask = await datetask.save();
+        res.json({ message: "success", data: savedDateTask });
+      }
     }
-}
-    }
-)
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "error" });
+  }
+});
 app.delete("/delete",async(req,res)=>{
     try {
-        console.log(req.body.id)
         const datetask = await DateTasks.findOne({"date":req.body.date})
         const newDateTasks = datetask.tasks.filter((task) => task.id !== req.body.id);
         await newDateTasks.save()
-        // console.log(newDateTasks)
         res.send({message:"success",data:newDateTasks})
 
     
@@ -76,36 +85,139 @@ app.delete("/delete",async(req,res)=>{
         // const newDateTasks = datetask.filter((task)=>task.id!==req.body.id)
 
     } catch (error) {
-        console.log(error);
         res.send("error")
     }
 })
 app.post("/add",async(req,res)=>{
     // const date = "12/05/2023"
-  
+    const frontendDate = new Date(req.body.date);
+const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+const currentDate = frontendDate.toLocaleDateString('en-US', options);
         const datetask = new DateTasks({
-            date:req.body.date,
+            date:currentDate,
             tasks:req.body.tasks
         })
         try {
             const data = await datetask.save()
             res.json({message:"success",data:data})
     } catch (error) {
-        console.log(error);  
+        res.send("error")
     }
 })
 
 app.post("/addDailyTask",async(req,res)=>{
+  const currentDate = new Date().setHours(0,0,0,0)
+  // const currentDate = moment(req.body.date, "DD/MM/YYYY").toDate();
   
-        const dailytask = new DailyTasks({
-            tasks:req.body.tasks
-        })
-        try {
-            const data = await dailytask.save()
-            res.json({message:"success",data:data})
-    } catch (error) {
-        console.log(error);  
+  const dailytasks = await DailyTasks.findOneAndUpdate({})
+
+  if(dailytasks===null){
+    const dailytask = new DailyTasks({
+      date:currentDate,
+      tasks:{...req.body.task,id:1}
+  })
+  await dailytask.save()
+  }
+  else{
+    const newTask = req.body.task;
+    var newId = 0;
+    if(dailytasks.tasks.length>0){
+
+      newId = parseInt(dailytasks.tasks[dailytasks.tasks.length-1].id)+1
     }
+    else{
+      newId = 1
+    }
+
+    dailytasks.tasks=[...dailytasks.tasks,{...newTask,id:newId}]
+        try {
+            const data = await dailytasks.save()
+            // res.json({message:"success",data:{...newTask,id:newId}})
+            // console.log(req.body.date)
+            DateTasks.find({ date: { $gte: currentDate } })
+            .then(datetasks => {
+              datetasks.forEach(async(datetask)=>{
+                datetask.tasks = [...datetask.tasks,newTask]
+                await datetask.save()
+                // console.log(datetask)
+              })
+              
+              res.json({message:"success",data:newTask})
+              // res.json(tasks)
+            })
+            .catch(err => {
+              console.error(err);
+              res.json({message:"Error"})
+
+            });
+    } catch (error) {
+        res.json("error adding task")
+
+    }
+
+  }
+
+
+
+})
+
+app.put("/removeDailyTask",async(req,res)=>{
+  const currentDate = new Date().setHours(0,0,0,0)
+
+  const dailytasks = await DailyTasks.findOneAndUpdate({})
+
+  // const tasksFromRequest = (req.body.tasks[0]===[])?[]:req.body.tasks[0]
+  console.log("req.body.tasks")
+  console.log(req.body.tasks)
+  if(req.body.tasks.length<=0){
+    console.log("Came empty")
+    dailytasks.tasks=[]
+    await dailytasks.save()
+    DateTasks.find({ date: { $gte: currentDate } })
+    .then(datetasks => {
+      datetasks.forEach(async(datetask)=>{
+        var additionalTasks = datetask.tasks.filter((task)=>task.taskType==="additional")
+
+        datetask.tasks=[...additionalTasks]
+        console.log(req.body.tasks)
+        await datetask.save()
+      })
+      
+      
+      // res.json({message:"success",data:newTask})
+    })
+    .catch(err => {
+      console.error(err);
+      res.json({message:"Error"})
+
+    });
+    res.json({"message":"success"})
+  }
+  else{
+    console.log("Came else")
+
+    dailytasks.tasks = req.body.tasks
+    await dailytasks.save()
+    DateTasks.find({ date: { $gte: currentDate } })
+    .then(datetasks => {
+      datetasks.forEach(async(datetask)=>{
+        var additionalTasks = datetask.tasks.filter((task)=>task.taskType==="additional")
+
+        datetask.tasks=[...additionalTasks,req.body.tasks[0]]
+        console.log(req.body.tasks)
+        await datetask.save()
+      })
+      
+      
+      // res.json({message:"success",data:newTask})
+    })
+    .catch(err => {
+      console.error(err);
+      res.json({message:"Error"})
+
+    });
+    res.json({messasge:"success"})
+  }
 })
 
 app.post('/getLineChart', async (req, res) => {
@@ -228,7 +340,7 @@ app.post('/getLineChart', async (req, res) => {
                 dataset.push(val.complete)
                 incompleteTasks.push(val.incomplete)
             })
-            console.log(req.params.date);
+            // console.log(req.params.date);
             const sum = dataset.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
             const incompleteTasksSum = incompleteTasks.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
             const datetask = await DateTasks.findOne({"date":req.body.date})
@@ -243,7 +355,7 @@ app.post('/getLineChart', async (req, res) => {
 
                 }
             })
-            res.json({"dataset":dataset,"totalTasks":sum,"incompleteTasks":incompleteTasksSum,"totalTasks":incompleteTasksSum+sum,"pieChart":[todayComplete,todayInComplete]});
+            res.json({"dataset":dataset,"totalCompletedTasks":sum,"incompleteTasks":incompleteTasksSum,"totalTasks":incompleteTasksSum+sum,"pieChart":[todayComplete,todayInComplete]});
       });
   
    
@@ -253,14 +365,18 @@ app.post('/getLineChart', async (req, res) => {
     }
   });
 app.put("/update",async(req,res)=>{ 
-    const datetask = await DateTask.findOne({"date":req.body.date})
-        datetask.date=req.body.date
+  const currentDate = new Date(req.body.date).setHours(0,0,0,0);
+
+// console.log(currentDate)
+    const datetask = await DateTasks.findOne({"date":currentDate})
+
         datetask.tasks=req.body.tasks
         try {
             const data = await datetask.save()
+            // console.log(data)
             res.json({message:"success",data:data})
     } catch (error) {
-        console.log("error");  
+        console.log("error",error);  
     }
 })
 
