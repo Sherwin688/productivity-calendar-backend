@@ -98,7 +98,7 @@ const currentDate = frontendDate.toLocaleDateString('en-US', options);
 })
 
 app.post("/addDailyTask",async(req,res)=>{
-  const currentDate = new Date().setHours(0,0,0,0)
+  const currentDate = req.body.date
   
   const dailytasks = await DailyTasks.findOneAndUpdate({})
 
@@ -149,7 +149,7 @@ app.post("/addDailyTask",async(req,res)=>{
 })
 
 app.put("/removeDailyTask",async(req,res)=>{
-  const currentDate = new Date().setHours(0,0,0,0)
+  const currentDate = req.body.date
 
   const dailytasks = await DailyTasks.findOneAndUpdate({})
 
@@ -219,7 +219,7 @@ app.put("/removeDailyTask",async(req,res)=>{
 })
 
 app.put("/updateDailyTask",async(req,res)=>{
-  const currentDate = new Date().setHours(0,0,0,0)
+  const currentDate = req.body.date
 
   const dailytasks = await DailyTasks.findOneAndUpdate({})
 
@@ -433,7 +433,7 @@ var monthlyResultsData = {
     }
   });
 app.put("/update",async(req,res)=>{ 
-  const currentDate = new Date(req.body.date).setHours(0,0,0,0);
+  const currentDate = req.body.date
 
     const datetask = await DateTasks.findOne({"date":currentDate})
 
