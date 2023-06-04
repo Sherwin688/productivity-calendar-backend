@@ -1,16 +1,18 @@
+require('dotenv').config()
+
 const express = require("express")
 const mongoose = require("mongoose")
-const url = "mongodb://127.0.0.1/productivityCalendar"
 const app = express()
 const DateTasks = require("./models/DateTask")
 const cors = require('cors');
 const DailyTasks = require("./models/DailyTasks")
 const PORT = process.env.PORT || 8000
+const mongodb_url = process.env.MongoDB_URL
 
 app.use(cors({
     origin: 'http://localhost:3000'
 }));
-mongoose.connect(url)
+mongoose.connect(mongodb_url)
 const conn = mongoose.connection
 
 conn.on("open",()=>{
