@@ -34,7 +34,7 @@ app.get("/",async(req,res)=>{
 app.post("/find", async (req, res) => {
   
 //  const currentDate = new Date(req.body.date).setHours(0,0,0,0)
- const currentDate = req.body.date
+ const currentDate = Date.parse(req.body.date)
  
 
   try {
