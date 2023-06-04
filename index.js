@@ -5,6 +5,7 @@ const app = express()
 const DateTasks = require("./models/DateTask")
 const cors = require('cors');
 const DailyTasks = require("./models/DailyTasks")
+const PORT = process.env.PORT || 8000
 
 app.use(cors({
     origin: 'http://localhost:3000'
@@ -441,6 +442,6 @@ app.put("/update",async(req,res)=>{
     }
 })
 
-app.listen(8000,()=>{
+app.listen(PORT,()=>{
     console.log("Server Running")
 })
