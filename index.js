@@ -11,7 +11,7 @@ const mongodb_url = process.env.MongoDB_URL
 
 app.use(cors({
     // origin: 'https://main--fluffy-malabi-dcabee.netlify.app'
-    origin: 'localhost:3000'
+    origin: 'http://localhost:3000'
 }));
 mongoose.connect(mongodb_url)
 const conn = mongoose.connection
