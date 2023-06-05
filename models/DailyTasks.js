@@ -19,7 +19,7 @@ const createDefaultObject = async () => {
     const existingDefaultObject = await DailyTasks.findOne();
     if (!existingDefaultObject) {
       const defaultObject = new DailyTasks({
-        date: new Date(),
+        date: new Date().setHours(0,0,0,0),
         tasks: [
           {
             id: '1',

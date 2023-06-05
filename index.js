@@ -429,7 +429,7 @@ var monthlyResultsData = {
   
    
     } catch (err) {
-      res.status(500).json({ error: 'An error occurred' });
+      res.status(500).json({ error: 'An error occurred',err:err });
     }
   });
 app.put("/update",async(req,res)=>{ 
