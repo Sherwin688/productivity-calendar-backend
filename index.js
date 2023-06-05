@@ -324,6 +324,9 @@ app.post('/getLineChart', async (req, res) => {
   "December": 12
 };
 
+try{
+
+
 var monthlyResults = await DateTasks.aggregate([ { $project: { month: { $month: { $dateFromString: { dateString: { $substr: ['$date', 0, 10] } } } }, tasks: '$tasks.status' } }, { $unwind: '$tasks' }, { $match: { month: 6 } }, { $group: { _id: { month: '$month', status: '$tasks' }, count: { $sum: 1 } } }, { $group: { _id: '$_id.month', counts: { $push: { k: '$_id.status', v: '$count' } } } }, { $project: { _id: 0, month: '$_id', counts: { $arrayToObject: '$counts' } } }, { $sort: { month: 1 } } ]);
 
 var tComplete = monthlyResults[0].counts.complete===undefined?0:monthlyResults[0].counts.complete
@@ -334,7 +337,10 @@ var monthlyResultsData = {
   "tasksInomplete":tIncomplete,
   "percentage": Math.floor(tComplete/(tIncomplete+tComplete)*100)
 }
-
+}
+catch (err){
+res.json({err:err})
+}
 
     try {
        await DateTasks.aggregate([
@@ -429,9 +435,11 @@ var monthlyResultsData = {
   
    
     } catch (err) {
+
       res.status(500).json({ error: 'An error occurred',err:err });
     }
   });
+
 app.put("/update",async(req,res)=>{ 
   const currentDate = req.body.date
 
