@@ -325,10 +325,14 @@ app.post('/getLineChart', async (req, res) => {
 };
 
 try{
+console.log(req.body.date)
+var passedDate = new Date(req.body.date)
+console.log(passedDate)
 
-var monthValue = new Date(req.body.date).getMonth()
-var monthlyResults = await DateTasks.aggregate([ { $project: { month: { $month: { $dateFromString: { dateString: { $substr: ['$date', 0, 10] } } } }, tasks: '$tasks.status' } }, { $unwind: '$tasks' }, { $match: { month: monthValue+1 } }, { $group: { _id: { month: '$month', status: '$tasks' }, count: { $sum: 1 } } }, { $group: { _id: '$_id.month', counts: { $push: { k: '$_id.status', v: '$count' } } } }, { $project: { _id: 0, month: '$_id', counts: { $arrayToObject: '$counts' } } }, { $sort: { month: 1 } } ]);
-
+const monthValue = passedDate.getMonth()
+console.log(monthValue)
+var monthlyResults = await DateTasks.aggregate([ { $project: { month: { $month: { $dateFromString: { dateString: { $substr: ['$date', 0, 10] } } } }, tasks: '$tasks.status' } }, { $unwind: '$tasks' }, { $match: { month: monthValue } }, { $group: { _id: { month: '$month', status: '$tasks' }, count: { $sum: 1 } } }, { $group: { _id: '$_id.month', counts: { $push: { k: '$_id.status', v: '$count' } } } }, { $project: { _id: 0, month: '$_id', counts: { $arrayToObject: '$counts' } } }, { $sort: { month: 1 } } ]);
+console.log(monthlyResults)
 var tComplete = monthlyResults[0].counts.complete===undefined?0:monthlyResults[0].counts.complete
 var tIncomplete = monthlyResults[0].counts.incomplete===undefined?0:monthlyResults[0].counts.incomplete
 var monthlyResultsData = {
@@ -381,6 +385,7 @@ var monthlyResultsData = {
       
       
       ).exec().then(async(results)=>{
+
         var data = [];
           
             results.map((res)=>{
@@ -412,7 +417,9 @@ var monthlyResultsData = {
             })
             const sum = dataset.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
             const incompleteTasksSum = incompleteTasks.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
-            const datetask = await DateTasks.findOne({"date":new Date(req.body.date).setHours(0,0,0,0)})
+            const datetask = await DateTasks.findOne({"date":req.body.date})
+            // console.log("datetask")
+            // console.log(datetask)
             var todayComplete = 0
             var todayInComplete = 0
             datetask.tasks.map((task)=>{
