@@ -1,7 +1,10 @@
 const mongoose = require('mongoose');
 
 const dailyTasksSchema = new mongoose.Schema({
-  date: Date,
+  date: {
+    type:Date,
+  
+  },
   tasks: [
     {
       id: String,
@@ -18,8 +21,10 @@ const createDefaultObject = async () => {
   try {
     const existingDefaultObject = await DailyTasks.findOne();
     if (!existingDefaultObject) {
+      var currentDate = new Date();
+      var findalDate =   new Date( currentDate.getTime() + Math.abs(currentDate.getTimezoneOffset()*60000) );
       const defaultObject = new DailyTasks({
-        date: new Date().setHours(0,0,0,0),
+        date: findalDate,
         tasks: [
           {
             id: '1',

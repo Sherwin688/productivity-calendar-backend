@@ -7,11 +7,13 @@ const DateTasks = require("./models/DateTask")
 const cors = require('cors');
 const DailyTasks = require("./models/DailyTasks")
 const PORT = process.env.PORT || 8000
+const moment = require('moment');
+// moment.tz.setDefault('Asia/Kolkata');
 const mongodb_url = process.env.MongoDB_URL
 
 app.use(cors({
-    origin: 'https://main--fluffy-malabi-dcabee.netlify.app'
-    // origin: 'http://localhost:3000'
+    // origin: 'https://main--fluffy-malabi-dcabee.netlify.app'
+    origin: 'http://localhost:3000'
 }));
 mongoose.connect(mongodb_url)
 const conn = mongoose.connection
@@ -32,31 +34,29 @@ app.get("/",async(req,res)=>{
     }
 })
 app.post("/find", async (req, res) => {
-  
-//  const currentDate = new Date(req.body.date).setHours(0,0,0,0)
- const currentDate = req.body.date
- 
+  const now = moment(req.body.date);
+  const currentDate = now.startOf('day').toISOString();
 
   try {
-
     const datetask = await DateTasks.findOne({ date: currentDate });
 
     if (datetask) {
       res.json({ message: "success", data: datetask });
-    } else 
-    {
+    } else {
       const dailytasks = await DailyTasks.findOne().sort({ field: 'asc', _id: -1 }).limit(1);
+
       if (dailytasks) {
         const datetask = new DateTasks({
           date: currentDate,
-          tasks: [...dailytasks.tasks]
+          tasks: [...dailytasks.tasks],
         });
+
         const savedDateTask = await datetask.save();
         res.json({ message: "success", data: savedDateTask });
       } else {
         const datetask = new DateTasks({
           date: currentDate,
-          tasks: []
+          tasks: [],
         });
 
         const savedDateTask = await datetask.save();
@@ -69,8 +69,10 @@ app.post("/find", async (req, res) => {
   }
 });
 app.delete("/delete",async(req,res)=>{
+  const now = moment(req.body.date);
+  const currentDate = now.startOf('day').toISOString();
     try {
-        const datetask = await DateTasks.findOne({"date":req.body.date})
+        const datetask = await DateTasks.findOne({"date":currentDate})
         const newDateTasks = datetask.tasks.filter((task) => task.id !== req.body.id);
         await newDateTasks.save()
         res.send({message:"success",data:newDateTasks})
@@ -82,9 +84,9 @@ app.delete("/delete",async(req,res)=>{
     }
 })
 app.post("/add",async(req,res)=>{
-    const frontendDate = new Date(req.body.date);
-const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-const currentDate = frontendDate.toLocaleDateString('en-US', options);
+  const now = moment(req.body.date);
+  const currentDate = now.startOf('day').toISOString();
+
         const datetask = new DateTasks({
             date:currentDate,
             tasks:req.body.tasks
@@ -97,59 +99,57 @@ const currentDate = frontendDate.toLocaleDateString('en-US', options);
     }
 })
 
-app.post("/addDailyTask",async(req,res)=>{
-  const currentDate = req.body.date
-  
-  const dailytasks = await DailyTasks.findOneAndUpdate({})
+app.post("/addDailyTask", async (req, res) => {
+  const now = moment(req.body.date);
+  const currentDate = now.startOf('day').toISOString();
 
-  if(dailytasks===null){
-    const dailytask = new DailyTasks({
-      date:currentDate,
-      tasks:{...req.body.task,id:1}
-  })
-  await dailytask.save()
+  try {
+    const dailytasks = await DailyTasks.findOneAndUpdate({});
+
+    if (dailytasks === null) {
+      const dailytask = new DailyTasks({
+        date: currentDate,
+        tasks: { ...req.body.task, id: 1 }
+      });
+      await dailytask.save();
+    } else {
+      const newTask = req.body.task;
+      let newId = 0;
+      
+      if (dailytasks.tasks.length > 0) {
+        newId = parseInt(dailytasks.tasks[dailytasks.tasks.length - 1].id) + 1;
+      } else {
+        newId = 1;
+      }
+
+      dailytasks.tasks = [...dailytasks.tasks, { ...newTask, id: newId }];
+
+      const data = await dailytasks.save();
+
+      DateTasks.find({ date: { $gte: currentDate } })
+        .then((datetasks) => {
+          datetasks.forEach(async (datetask) => {
+            datetask.tasks = [...datetask.tasks, newTask];
+            await datetask.save();
+          });
+
+          res.json({ message: "success", data: newTask });
+        })
+        .catch((err) => {
+          console.error(err);
+          res.json({ message: "Error" });
+        });
+    }
+  } catch (error) {
+    res.json("error adding task");
   }
-  else{
-    const newTask = req.body.task;
-    var newId = 0;
-    if(dailytasks.tasks.length>0){
+});
 
-      newId = parseInt(dailytasks.tasks[dailytasks.tasks.length-1].id)+1
-    }
-    else{
-      newId = 1
-    }
-
-    dailytasks.tasks=[...dailytasks.tasks,{...newTask,id:newId}]
-        try {
-            const data = await dailytasks.save()
-            DateTasks.find({ date: { $gte: currentDate } })
-            .then(datetasks => {
-              datetasks.forEach(async(datetask)=>{
-                datetask.tasks = [...datetask.tasks,newTask]
-                await datetask.save()
-              })
-              
-              res.json({message:"success",data:newTask})
-            })
-            .catch(err => {
-              console.error(err);
-              res.json({message:"Error"})
-
-            });
-    } catch (error) {
-        res.json("error adding task")
-
-    }
-
-  }
-
-
-
-})
 
 app.put("/removeDailyTask",async(req,res)=>{
-  const currentDate = req.body.date
+
+  const now = moment(req.body.date);
+  const currentDate = now.startOf('day').toISOString();
 
   const dailytasks = await DailyTasks.findOneAndUpdate({})
 
@@ -219,7 +219,8 @@ app.put("/removeDailyTask",async(req,res)=>{
 })
 
 app.put("/updateDailyTask",async(req,res)=>{
-  const currentDate = req.body.date
+  const now = moment(req.body.date);
+  const currentDate = now.startOf('day').toISOString();
 
   const dailytasks = await DailyTasks.findOneAndUpdate({})
 
@@ -281,6 +282,7 @@ app.put("/updateDailyTask",async(req,res)=>{
 })
 
 app.post('/getLineChart', async (req, res) => {
+
     const months = [
         "January",
         "February",
@@ -323,14 +325,17 @@ app.post('/getLineChart', async (req, res) => {
   "November": 11,
   "December": 12
 };
-
+const now = moment(req.body.date);
+const passedDate = now.startOf('day').toISOString();
+const monthValue = new Date(passedDate).getMonth()+1
+console.log("new Date(passedDate)")
+console.log(new Date(passedDate))
 try{
-console.log(req.body.date)
-var passedDate = new Date(req.body.date)
-console.log(passedDate)
+ 
+// var passedDate = new Date(req.body.date).setHours(0,0,0,0)
+// console.log(passedDate)
 
-const monthValue = passedDate.getMonth()
-console.log(monthValue)
+
 var monthlyResults = await DateTasks.aggregate([ { $project: { month: { $month: { $dateFromString: { dateString: { $substr: ['$date', 0, 10] } } } }, tasks: '$tasks.status' } }, { $unwind: '$tasks' }, { $match: { month: monthValue } }, { $group: { _id: { month: '$month', status: '$tasks' }, count: { $sum: 1 } } }, { $group: { _id: '$_id.month', counts: { $push: { k: '$_id.status', v: '$count' } } } }, { $project: { _id: 0, month: '$_id', counts: { $arrayToObject: '$counts' } } }, { $sort: { month: 1 } } ]);
 console.log(monthlyResults)
 var tComplete = monthlyResults[0].counts.complete===undefined?0:monthlyResults[0].counts.complete
@@ -415,9 +420,15 @@ var monthlyResultsData = {
                 dataset.push(val.complete)
                 incompleteTasks.push(val.incomplete)
             })
+            const now = moment(req.body.date);
+            const todaysDate = now.startOf('day').toISOString();
             const sum = dataset.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
             const incompleteTasksSum = incompleteTasks.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
-            const datetask = await DateTasks.findOne({"date":req.body.date})
+            const datetask = await DateTasks.findOne({"date":todaysDate})
+            
+             console.log("datetask");
+             console.log(datetask);
+   
             // console.log("datetask")
             // console.log(datetask)
             var todayComplete = 0
@@ -443,7 +454,10 @@ var monthlyResultsData = {
   });
 
 app.put("/update",async(req,res)=>{ 
-  const currentDate = req.body.date
+  const now = moment(req.body.date);
+  const currentDate = now.startOf('day').toISOString();
+
+
 
     const datetask = await DateTasks.findOne({"date":currentDate})
 

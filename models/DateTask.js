@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 const dateTaskSchema = new mongoose.Schema({
   date: {
-    type: Date,
-    required: true
+    type:Date,
+  
   },
   tasks: [
     {
@@ -21,8 +21,10 @@ const createDefaultObject = async () => {
   try {
     const existingDefaultObject = await DateTask.findOne();
     if (!existingDefaultObject) {
+      var currentDate = new Date();
+      var findalDate =   new Date( currentDate.getTime() + Math.abs(currentDate.getTimezoneOffset()*60000) );
       const defaultObject = new DateTask({
-        date: new Date().setHours(0,0,0,0),
+        date: findalDate,
         tasks: [
           {
             id: '1',
